@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/plugins/geodms" >
+        <file>icon.png</file>
+    </qresource>
+</RCC>
