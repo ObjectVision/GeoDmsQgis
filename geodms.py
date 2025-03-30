@@ -21,7 +21,7 @@
  *                                                                         *
  ***************************************************************************/
 """
-from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt
+from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QAbstractItemModel
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
 # Initialize Qt resources from file resources.py
@@ -31,6 +31,221 @@ from .resources import *
 from .geodms_dockwidget import GeodmsDockWidget
 import os.path
 
+
+class GeodmsModel(QAbstractItemModel):
+    def __init__(self, root):
+        self.root_treeitem = root
+        return
+
+    def set_root(self, root):
+        self.root_treeitem = root
+
+    def reset(self):
+        self.beginResetModel()
+        self.endResetModel()
+        return
+
+    def root(self):
+        return self.root_treeitem
+    
+    def headerData(self, section, orientation, role):
+        return None
+
+    def get_treeitem(self, index):
+        return index.internalPointer()
+    
+    def get_row(self, treeitem):
+        return
+    
+    def get_treeitem_or_root(self, index):
+        treeitem = self.get_treeitem(index)
+        if not treeitem:
+            return self.root_treeitem
+        return treeitem
+
+    def index(self, row, column, parent):
+        if not self.hasIndex(row, column, parent):
+            return QtCore.QModelIndex()
+        
+        treeitem = self.get_treeitem_or_root(parent)
+        assert(treeitem)
+        
+        curr_row:int = 0
+        treeitem = treeitem_GetFirstSubItem(treeitem)
+        while(treeitem):
+            #TODO: check if ti is hidden here
+            if curr_row == row:
+                return self.createIndex(row, column, treeitem)
+            treeitem = treeitem_GetNextItem(treeitem)
+            row+=1
+            
+        print(f"Warning: could not index row {row} for parent {parent}")
+        return QtCore.QModelIndex()
+
+    def parent(self, child):
+        if not child.isValid():
+            return QtCore.QModelIndex()
+        
+        treeitem = self.get_treeitem(child)
+        assert(treeitem)
+
+        #TODO: call parent function here
+        return QtCore.QModelIndex()
+
+    def rowCount(self, parent):
+        number_of_rows:int = 0
+
+        parent_treeitem = self.get_treeitem_or_root(parent)
+        treeitem = treeitem_GetFirstSubItem(parent_treeitem)
+        while(treeitem):
+            #TODO: check if ti is hidden here
+            if not treeitem:
+                continue
+            number_of_rows+=1
+        return number_of_rows
+
+    def columnCount(self, parent):
+        return 1
+
+    def data(self, index, role):
+        if not index.isValid():
+            return None #TODO: determine None is same as C++ return QVariant() for example 
+
+        treeitem = self.get_treeitem_or_root(index)
+        if not treeitem:
+            return None
+
+        # use to be implemented update_metainfo_if_needed function
+        '''if (!ti->Was(PS_MetaInfo) && !ti->WasFailed(FR_MetaInfo)) {
+            ObjectMsgGenerator thisMsgGenerator(ti, "UpdateMetaInfo");
+            Waiter showWaitingStatus(&thisMsgGenerator);
+
+            try {
+                ti->UpdateMetaInfo();
+            }
+            catch (...) {
+                ti->CatchFail(FR_MetaInfo);
+            }
+        }'''
+
+        
+        if role == Qt.DecorationRole:
+            return None #getTreeItemIcon(index);
+        elif role == Qt.EditRole or role == Qt.DisplayRole:
+            return None # QString(ti->GetName().c_str());
+        elif role == Qt.ForegroundRole:
+            return None # getTreeItemColor(index);
+        elif role == Qt.BackgroundRole:
+            '''if (ti->WasFailed() && !MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().empty()
+                && MainWindow::TheOne()->m_treeview->selectionModel()->selectedIndexes().at(0) == index) {
+                return QColor(150, 0, 0);
+            }
+
+            if (ti->WasFailed())
+                return QColor(255, 0, 0);
+
+            switch (TreeItem_GetSupplierLevel(ti)) {
+            case supplier_level::calc: return QColor(158, 201, 226); // clSkyBlue;
+            case supplier_level::meta: return QColor(192, 220, 192); // $C0DCC0 clMoneyGreen;
+            case supplier_level::calc_source: return QColor(000, 000, 255); // clBlue;
+            case supplier_level::meta_source: return QColor(000, 255, 000); // clGreen;
+            }
+            break; // default background color'''
+            return None
+        elif role == Qt.SizeHintRole:
+            '''auto font = QApplication::font();
+            auto font_metrics = QFontMetrics(font);
+            int pixels_wide = font_metrics.horizontalAdvance(ti->GetName().c_str()) + 50;
+            int pixels_high = font_metrics.height();
+            return QSize(pixels_wide, pixels_high);'''
+            return None
+        elif role == Qt.FontRole:
+            return None # QApplication::font();
+        return None
+
+    def has_children(self, parent):
+        treeitem = self.get_treeitem_or_root(parent)
+        if not treeitem:
+            return False
+        
+		#if (ti->Was(PS_MetaInfo))
+		#	return ti->_GetFirstSubItem() != nullptr;
+
+        return False #ti->HasSubItems();
+
+    def flags(self, index):
+        if not index.isValid():
+            return QtCore.Qt.NoItemFlags
+
+        return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsDragEnabled | QAbstractItemModel.flags(index)
+
+    def get_treeitem_icon(self, index):
+        '''
+        	auto ti = GetTreeItemOrRoot(index);
+            if (!ti)
+                return QVariant();
+
+            bool isTemplate = ti->IsTemplate();
+
+            // TODO, CODE CLEAN-UP: All followwing code return a QVariant::fromValue(QPixmap(CharPtr)
+            // so we can factor the postprocessing after resource determination out and/or use a map to store the pixmaps and return the right one.
+
+            if (isTemplate)
+                return QVariant::fromValue(QPixmap(":/res/images/TV_template.bmp")); 
+
+            bool isInTemplate = ti->InTemplate();
+            auto vsflags = SHV_GetViewStyleFlags(ti);
+
+            if (vsflags & ViewStyleFlags::vsfMapView) 
+                return isInTemplate 
+                ? QVariant::fromValue(QPixmap(":/res/images/TV_globe_bw.bmp")) 
+                : QVariant::fromValue(QPixmap(":/res/images/TV_globe.bmp"));
+
+            if (vsflags & ViewStyleFlags::vsfTableContainer)
+                return isInTemplate 
+                ? QVariant::fromValue(QPixmap(":/res/images/TV_container_table_bw.bmp")) 
+                : QVariant::fromValue(QPixmap(":/res/images/TV_container_table.bmp"));
+
+            if (vsflags & ViewStyleFlags::vsfTableView)
+                return isInTemplate 
+                ? QVariant::fromValue(QPixmap(":/res/images/TV_table_bw.bmp")) 
+                : QVariant::fromValue(QPixmap(":/res/images/TV_table.bmp"));
+
+            if (vsflags & ViewStyleFlags::vsfPaletteEdit)
+                return isInTemplate 
+                ? QVariant::fromValue(QPixmap(":/res/images/TV_palette_bw.bmp")) 
+                : QVariant::fromValue(QPixmap(":/res/images/TV_palette.bmp"));
+
+            if (vsflags & ViewStyleFlags::vsfContainer) 
+                return isInTemplate 
+                ? QVariant::fromValue(QPixmap(":/res/images/TV_container_bw.bmp")) 
+                : QVariant::fromValue(QPixmap(":/res/images/TV_container.bmp"));
+
+            bool isDataItem = IsDataItem(ti);
+            if (isDataItem)
+                return isInTemplate
+                ? QVariant::fromValue(QPixmap(":/res/images/TV_table_bw.bmp"))
+                : QVariant::fromValue(QPixmap(":/res/images/TV_table.bmp"));
+
+            return QVariant::fromValue(QPixmap(":/res/images/TV_unit_transpa
+        '''
+        return None
+    
+    def get_treeitem_color(self, index):
+        '''
+        	auto ti = GetTreeItemOrRoot(index);
+            assert(ti);
+            
+            if (!show_state_colors)
+                return QColor(0,0,0); // black
+
+            if (ti->WasFailed())
+                return QColor(255, 255, 255); // white
+
+            auto co = getColorOption(ti);
+            return GetUserQColor(co);
+        '''
+        return
 
 class Geodms:
     """QGIS Plugin Implementation."""
