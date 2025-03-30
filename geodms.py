@@ -445,4 +445,6 @@ class Geodms:
             # TODO: fix to allow choice of dock location
             self.iface.addTabifiedDockWidget(Qt.LeftDockWidgetArea, self.dockwidget, raiseTab=True)
             #self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.dockwidget)
+
+            print(self.dockwidget.widget())
             self.dockwidget.show()
