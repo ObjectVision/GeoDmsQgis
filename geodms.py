@@ -420,22 +420,22 @@ class Geodms:
     def run(self):
         """Run method that loads and starts the plugin"""
         
-        print(f"geodms module: {geodms_bindings} {dir(geodms_bindings)}")
-        dms_version = geodms_bindings.version()
-        print(dms_version)
+        #print(f"geodms module: {geodms_bindings} {dir(geodms_bindings)}")
+        #dms_version = geodms_bindings.version()
+        #print(dms_version)
 
         # init engine
-        dms_engine = geodms_bindings.Engine()
-        print(dms_engine)
+        #dms_engine = geodms_bindings.Engine()
+        #print(dms_engine)
 
-        dms_config = "C:/prj/GeoDMS-Test/Storage_gdal/cfg/regression.dms"
-        dms_config = dms_engine.load_config(dms_config)
-        root = dms_config.root()
-        print(root)
+        #dms_config = "C:/prj/GeoDMS-Test/Storage_gdal/cfg/regression.dms"
+        #dms_config = dms_engine.load_config(dms_config)
+        #root = dms_config.root()
+        #print(root)
         
-        self.model = GeodmsModel(root)
-        self.treeview = QTreeView()
-        self.treeview.setModel(self.model)
+        #self.model = GeodmsModel(root)
+        #self.treeview = QTreeView()
+        #self.treeview.setModel(self.model)
 
         if not self.pluginIsActive:
             self.pluginIsActive = True
