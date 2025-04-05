@@ -23,7 +23,12 @@
 """
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QAbstractItemModel
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction
+from qgis.PyQt.QtWidgets import QAction, QTreeView
+
+import sys
+sys.path.append('C:/dev/geodms/geodms_v17/bin/Release/x64')
+from geodms import geodms as geodms_bindings
+
 # Initialize Qt resources from file resources.py
 from .resources import *
 
@@ -88,9 +93,11 @@ class GeodmsModel(QAbstractItemModel):
         
         treeitem = self.get_treeitem(child)
         assert(treeitem)
-
-        #TODO: call parent function here
-        return QtCore.QModelIndex()
+        parent = treeitem.parent()
+        if not parent:
+            return QtCore.QModelIndex()
+        
+        return self.createIndex(self.get_row(parent), 0, parent);
 
     def rowCount(self, parent):
         number_of_rows:int = 0
@@ -98,8 +105,7 @@ class GeodmsModel(QAbstractItemModel):
         parent_treeitem = self.get_treeitem_or_root(parent)
         treeitem = treeitem_GetFirstSubItem(parent_treeitem)
         while(treeitem):
-            #TODO: check if ti is hidden here
-            if not treeitem:
+            if treeitem.is_hidden(): # also add show hidden items flag in check
                 continue
             number_of_rows+=1
         return number_of_rows
@@ -109,30 +115,18 @@ class GeodmsModel(QAbstractItemModel):
 
     def data(self, index, role):
         if not index.isValid():
-            return None #TODO: determine None is same as C++ return QVariant() for example 
-
+            return None
+        
         treeitem = self.get_treeitem_or_root(index)
         if not treeitem:
             return None
 
-        # use to be implemented update_metainfo_if_needed function
-        '''if (!ti->Was(PS_MetaInfo) && !ti->WasFailed(FR_MetaInfo)) {
-            ObjectMsgGenerator thisMsgGenerator(ti, "UpdateMetaInfo");
-            Waiter showWaitingStatus(&thisMsgGenerator);
-
-            try {
-                ti->UpdateMetaInfo();
-            }
-            catch (...) {
-                ti->CatchFail(FR_MetaInfo);
-            }
-        }'''
-
+        treeitem.update_metainfo()
         
         if role == Qt.DecorationRole:
             return None #getTreeItemIcon(index);
         elif role == Qt.EditRole or role == Qt.DisplayRole:
-            return None # QString(ti->GetName().c_str());
+            return treeitem.name()
         elif role == Qt.ForegroundRole:
             return None # getTreeItemColor(index);
         elif role == Qt.BackgroundRole:
@@ -168,10 +162,10 @@ class GeodmsModel(QAbstractItemModel):
         if not treeitem:
             return False
         
-		#if (ti->Was(PS_MetaInfo))
+        #if (ti->Was(PS_MetaInfo))
 		#	return ti->_GetFirstSubItem() != nullptr;
-
-        return False #ti->HasSubItems();
+        first_child = treeitem.first_subitem()
+        return first_child
 
     def flags(self, index):
         if not index.isValid():
@@ -425,6 +419,23 @@ class Geodms:
 
     def run(self):
         """Run method that loads and starts the plugin"""
+        
+        print(f"geodms module: {geodms_bindings} {dir(geodms_bindings)}")
+        dms_version = geodms_bindings.version()
+        print(dms_version)
+
+        # init engine
+        dms_engine = geodms_bindings.Engine()
+        print(dms_engine)
+
+        dms_config = "C:/prj/GeoDMS-Test/Storage_gdal/cfg/regression.dms"
+        dms_config = dms_engine.load_config(dms_config)
+        root = dms_config.root()
+        print(root)
+        
+        self.model = GeodmsModel(root)
+        self.treeview = QTreeView()
+        self.treeview.setModel(self.model)
 
         if not self.pluginIsActive:
             self.pluginIsActive = True
