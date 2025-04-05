@@ -32,5 +32,5 @@ def classFactory(iface):  # pylint: disable=invalid-name
     :type iface: QgsInterface
     """
     #
-    from .geodms import Geodms
-    return Geodms(iface)
+    from .geodms_qgis import GeodmsQgis
+    return GeodmsQgis(iface)

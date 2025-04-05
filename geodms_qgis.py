@@ -241,7 +241,7 @@ class GeodmsModel(QAbstractItemModel):
         '''
         return
 
-class Geodms:
+class GeodmsQgis:
     """QGIS Plugin Implementation."""
 
     def __init__(self, iface):
